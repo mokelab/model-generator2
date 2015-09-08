@@ -15,12 +15,17 @@ func Test_0000_simple(t *testing.T) {
 				Type:      "string",
 				TableType: "varchar(32)",
 			},
+			&model.Type{
+				Name:      "Age",
+				Type:      "int",
+				TableType: "int",
+			},
 		},
 	}
 	options := map[string]string{
 		OPTION_PRIMARY_KEYS: "Name",
 	}
-	g := &mysqlDDLGenerator{}
+	g := &mysqlDAOGenerator{}
 	w := &bytes.Buffer{}
 	g.Generate(table, options, w)
 	result := w.String()
