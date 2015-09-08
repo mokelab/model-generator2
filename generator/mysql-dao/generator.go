@@ -113,6 +113,10 @@ func (d *{{.TypeNameLocal}}DAO) scan(rows *sql.Rows) (m.{{.TypeName}}, error) {
 type mysqlDAOGenerator struct {
 }
 
+func NewGenerator() *mysqlDAOGenerator {
+	return &mysqlDAOGenerator{}
+}
+
 func (g *mysqlDAOGenerator) Generate(table *model.Table, options g.Options, w io.Writer) {
 	primaryKeyStr, ok := options[OPTION_PRIMARY_KEYS]
 	if !ok {

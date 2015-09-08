@@ -14,6 +14,10 @@ const (
 type mysqlDDLGenerator struct {
 }
 
+func NewGenerator() *mysqlDDLGenerator {
+	return &mysqlDDLGenerator{}
+}
+
 func (g *mysqlDDLGenerator) Generate(table *model.Table, options g.Options, w io.Writer) {
 	out := "create table " + table.TableName() + "(\n"
 	for i, field := range table.Fields {
