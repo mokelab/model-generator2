@@ -5,3 +5,7 @@ type Type struct {
 	Type      string
 	TableType string
 }
+
+func (t *Type) SnakeName() string {
+	return toSnake(t.Name)
+}
