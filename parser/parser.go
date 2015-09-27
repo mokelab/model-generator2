@@ -55,7 +55,8 @@ func parseFields(fields *ast.FieldList) ([]*model.Type, error) {
 		if field.Tag == nil {
 			return nil, errors.New("Tag not found")
 		}
-		tagValue := field.Tag.Value[1 : len(field.Tag.Value)-1]
+		tag := newTag(field.Tag.Value)
+		tagValue := tag.get("ct")
 		identType, ok := field.Type.(*ast.Ident)
 		if !ok {
 			return nil, errors.New("Type is not *ast.Ident")

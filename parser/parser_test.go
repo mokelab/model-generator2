@@ -9,7 +9,7 @@ import (
 func Test0000_simple(t *testing.T) {
 	src := "package model\n" +
 		"type Moke struct{\n" +
-		"  Name string `varchar(32)`\n" +
+		"  Name string `ct:varchar(32)`\n" +
 		"  Age int `int`\n" +
 		"}\n"
 	fset := token.NewFileSet()
