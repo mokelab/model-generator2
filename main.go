@@ -3,6 +3,7 @@ package main
 import (
 	g "./generator"
 	mysql_dao "./generator/mysql-dao"
+	mysql_dao_test "./generator/mysql-dao-test"
 	mysql_ddl "./generator/mysql-ddl"
 	_ "./model"
 	p "./parser"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	TYPE_MYSQL_DDL = "mysql_ddl"
-	TYPE_MYSQL_DAO = "mysql_dao"
+	TYPE_MYSQL_DDL      = "mysql_ddl"
+	TYPE_MYSQL_DAO      = "mysql_dao"
+	TYPE_MYSQL_DAO_TEST = "mysql_dao_test"
 )
 
 func main() {
@@ -32,15 +34,7 @@ func main() {
 		"primary_keys": *primaryKeys,
 	}
 
-	var generator g.Generator = nil
-	switch *outType {
-	case TYPE_MYSQL_DDL:
-		generator = mysql_ddl.NewGenerator()
-		break
-	case TYPE_MYSQL_DAO:
-		generator = mysql_dao.NewGenerator()
-		break
-	}
+	generator := createGenerator(*outType)
 	if generator == nil {
 		fmt.Errorf("Unknown type : %s", *outType)
 		return
@@ -58,4 +52,17 @@ func main() {
 		return
 	}
 	generator.Generate(tables[0], options, os.Stdout)
+}
+
+func createGenerator(outType string) g.Generator {
+	switch outType {
+	case TYPE_MYSQL_DDL:
+		return mysql_ddl.NewGenerator()
+	case TYPE_MYSQL_DAO:
+		return mysql_dao.NewGenerator()
+	case TYPE_MYSQL_DAO_TEST:
+		return mysql_dao_test.NewGenerator()
+	default:
+		return nil
+	}
 }

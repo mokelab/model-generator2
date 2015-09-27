@@ -3,15 +3,16 @@ package mysql
 import (
 	g "../"
 	"../../model"
-	"fmt"
 	"io"
 	"strings"
 	"text/template"
 )
 
 const (
-	OPTION_PRIMARY_KEYS = "primary_keys"
-	TEMPLATE_DAO        = `package mysql
+	OPTION_PRIMARY_KEYS         = "primary_keys"
+	OPTION_AUTO_GENERATE        = "auto_generate"
+	OPTION_AUTO_GENERATE_LENGTH = "auto_generate_length"
+	TEMPLATE_DAO                = `package mysql
 
 import (
 	m "../"
@@ -40,7 +41,14 @@ func (d *{{.TypeNameLocal}}DAO) Create({{.CreateArgs}}) (m.{{.TypeName}}, error)
 	}
 	defer st.Close()
 
+	{{if .AutoGenerateKey}}
+	{{.AutoGenerateVar}}, err := insertWithUUID({{.AutoGenerateKeyLength}}, func(id string) error {
+		_, err = st.Exec({{.Args}})
+		return err
+	})
+	{{else}}
 	_, err = st.Exec({{.Args}})
+	{{end}}
 	if err != nil {
 		return m.{{.TypeName}}{}, err
 	}
@@ -64,11 +72,14 @@ func (d *{{.TypeNameLocal}}DAO) Get({{.PrimaryKeyArgsSignature}}) (m.{{.TypeName
 		return m.{{.TypeName}}{}, err
 	}
 	defer rows.Close()
+	if !rows.Next() {
+		return m.{{.TypeName}}{}, err
+	}
 
 	return d.scan(rows)
 }
 
-func (d *{{.TypeNameLocal}}DAO) Update({{.CreateArgs}}) (m.{{.TypeName}}, error) {
+func (d *{{.TypeNameLocal}}DAO) Update({{.UpdateArgs}}) (m.{{.TypeName}}, error) {
 	db := d.connection.Connect()
 
 	st, err := db.Prepare("UPDATE {{.TableName}} SET {{.UpdateSet}},modified_time=unix_timestamp(now()) WHERE {{.PrimaryKeyWhere}}")
@@ -117,25 +128,39 @@ func NewGenerator() *mysqlDAOGenerator {
 	return &mysqlDAOGenerator{}
 }
 
-func (g *mysqlDAOGenerator) Generate(table *model.Table, options g.Options, w io.Writer) {
+func (o *mysqlDAOGenerator) Generate(table *model.Table, options g.Options, w io.Writer) {
 	primaryKeyStr, ok := options[OPTION_PRIMARY_KEYS]
 	if !ok {
 		return
 	}
 	primaryKeys := findPrimaryKeys(table.Fields, primaryKeyStr)
+
+	var fields []*model.Type
+	autoGenerateKeyStr, _ := options[OPTION_AUTO_GENERATE]
+	autoGenerateKeyLength, _ := options[OPTION_AUTO_GENERATE_LENGTH]
+	if len(autoGenerateKeyStr) > 0 && len(autoGenerateKeyLength) > 0 {
+		fields, _ = removeAutoGenerateKey(table.Fields, autoGenerateKeyStr)
+	} else {
+		autoGenerateKeyStr = ""
+		fields = table.Fields
+	}
 	t, _ := template.New("dao").Parse(TEMPLATE_DAO)
 	args := map[string]string{
 		"TableName":               table.TableName(),
-		"TypeNameLocal":           toLowerCamel(table.Name),
+		"TypeNameLocal":           g.ToLowerCamel(table.Name),
 		"TypeName":                table.Name,
-		"CreateArgs":              createArgsSignature(table.Fields),
-		"Args":                    createExecArgs(table.Fields),
-		"Rows":                    createTableRows(table.Fields),
-		"UpdateSet":               createUpdateSet(table.Fields),
-		"PrimaryKeyArgsSignature": createArgsSignature(primaryKeys),
-		"PrimaryKeyArgs":          createExecArgs(primaryKeys),
-		"PrimaryKeyWhere":         createUpdateSet(primaryKeys),
-		"Placeholders":            createPlaceholders(table.Fields),
+		"AutoGenerateKey":         autoGenerateKeyStr,
+		"AutoGenerateVar":         g.ToLowerCamel(autoGenerateKeyStr),
+		"AutoGenerateKeyLength":   autoGenerateKeyLength,
+		"CreateArgs":              g.CreateArgsSignature(fields),
+		"UpdateArgs":              g.CreateArgsSignature(table.Fields),
+		"Args":                    g.CreateExecArgs(table.Fields),
+		"Rows":                    g.CreateTableRows(table.Fields),
+		"UpdateSet":               g.CreateUpdateSet(table.Fields),
+		"PrimaryKeyArgsSignature": g.CreateArgsSignature(primaryKeys),
+		"PrimaryKeyArgs":          g.CreateExecArgs(primaryKeys),
+		"PrimaryKeyWhere":         g.CreateUpdateSet(primaryKeys),
+		"Placeholders":            g.CreatePlaceholders(table.Fields),
 		"ScanVars":                createScanVars(table.Fields),
 		"ScanArgs":                createScanArgs(table.Fields),
 		"Return":                  createReturn(table.Fields),
@@ -147,7 +172,6 @@ func findPrimaryKeys(fields []*model.Type, keyStr string) []*model.Type {
 	out := make([]*model.Type, 0)
 	keys := strings.SplitN(keyStr, ",", -1)
 	for _, key := range keys {
-		fmt.Println(key)
 		for _, field := range fields {
 			if field.Name == key {
 				out = append(out, field)
@@ -158,34 +182,17 @@ func findPrimaryKeys(fields []*model.Type, keyStr string) []*model.Type {
 	return out
 }
 
-func createArgsSignature(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return toLowerCamel(field.Name) + " " + field.Type
-	})
-}
-
-func createExecArgs(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return toLowerCamel(field.Name)
-	})
-}
-
-func createTableRows(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return field.SnakeName()
-	})
-}
-
-func createUpdateSet(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return field.SnakeName() + "=?"
-	})
-}
-
-func createPlaceholders(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return "?"
-	})
+func removeAutoGenerateKey(fields []*model.Type, key string) ([]*model.Type, *model.Type) {
+	out := make([]*model.Type, 0)
+	var autoGenerateKey *model.Type
+	for _, field := range fields {
+		if field.Name == key {
+			autoGenerateKey = field
+		} else {
+			out = append(out, field)
+		}
+	}
+	return out, autoGenerateKey
 }
 
 func createScanVars(fields []*model.Type) string {
@@ -194,36 +201,21 @@ func createScanVars(fields []*model.Type) string {
 		if i > 0 {
 			out += "\n"
 		}
-		out += "\tvar " + toLowerCamel(field.Name) + " " + field.Type
+		out += "\tvar " + g.ToLowerCamel(field.Name) + " " + field.Type
 	}
 	return out
 }
 
 func createScanArgs(fields []*model.Type) string {
-	return toList(fields, func(field *model.Type) string {
-		return "&" + toLowerCamel(field.Name)
+	return g.ToList(fields, func(field *model.Type) string {
+		return "&" + g.ToLowerCamel(field.Name)
 	})
 }
 
 func createReturn(fields []*model.Type) string {
 	out := ""
 	for _, field := range fields {
-		out += "\t\t" + field.Name + " : " + toLowerCamel(field.Name) + ",\n"
+		out += "\t\t" + field.Name + " : " + g.ToLowerCamel(field.Name) + ",\n"
 	}
 	return out
-}
-
-func toList(fields []*model.Type, f func(field *model.Type) string) string {
-	out := ""
-	for i, field := range fields {
-		if i > 0 {
-			out += ", "
-		}
-		out += f(field)
-	}
-	return out
-}
-
-func toLowerCamel(src string) string {
-	return strings.ToLower(src[0:1]) + src[1:]
 }

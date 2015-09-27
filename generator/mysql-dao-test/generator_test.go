@@ -32,7 +32,7 @@ func Test_0000_simple(t *testing.T) {
 		OPTION_AUTO_GENERATE:        "Id",
 		OPTION_AUTO_GENERATE_LENGTH: "48",
 	}
-	g := &mysqlDAOGenerator{}
+	g := &mysqlDAOTestGenerator{}
 	w := &bytes.Buffer{}
 	g.Generate(table, options, w)
 	result := w.String()
