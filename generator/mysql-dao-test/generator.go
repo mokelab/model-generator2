@@ -212,6 +212,8 @@ func createValue(field *model.Type, prefix string) string {
 	switch field.Type {
 	case "int":
 		return strconv.Itoa(len(prefix) + 5)
+	case "int64":
+		return strconv.Itoa(len(prefix) + 50)
 	case "string":
 		return "\"" + prefix + field.Name + "Val\""
 	default:
