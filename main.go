@@ -27,7 +27,8 @@ func main() {
 	flag.Parse()
 
 	if len(*srcFile) == 0 {
-		fmt.Errorf("src file must not be empty.\n")
+		fmt.Println(fmt.Errorf("src file must not be empty."))
+		printUsage()
 		return
 	}
 	options := map[string]string{
@@ -36,7 +37,8 @@ func main() {
 
 	generator := createGenerator(*outType)
 	if generator == nil {
-		fmt.Errorf("Unknown type : %s", *outType)
+		fmt.Println(fmt.Errorf("Unknown type : %s", *outType))
+		printUsage()
 		return
 	}
 
@@ -44,7 +46,8 @@ func main() {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, *srcFile, nil, 0)
 	if err != nil {
-		fmt.Errorf("Failed to parse input : %s", err)
+		fmt.Println(fmt.Errorf("Failed to parse input : %s", err))
+		printUsage()
 		return
 	}
 	tables, err := p.Parse(f)
@@ -65,4 +68,12 @@ func createGenerator(outType string) g.Generator {
 	default:
 		return nil
 	}
+}
+
+func printUsage() {
+	fmt.Printf(`
+Usage : modelGenerator -src=[src file] -outType=[type] -primaryKeys=[keys]
+type : mysql_ddl/mysql_dao/mysql_dao_test
+keys : , is separator. ex : -primaryKeys=token,user_id
+`)
 }
