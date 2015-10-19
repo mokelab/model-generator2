@@ -5,6 +5,7 @@ import (
 	"../../model"
 	"fmt"
 	"io"
+	"strings"
 )
 
 const (
@@ -19,7 +20,7 @@ func NewGenerator() *mysqlDDLGenerator {
 }
 
 func (g *mysqlDDLGenerator) Generate(table *model.Table, options g.Options, w io.Writer) {
-	out := "create table " + table.TableName() + "(\n"
+	out := "create table if not exists " + table.TableName() + "(\n"
 	for i, field := range table.Fields {
 		if i > 0 {
 			out = out + ",\n"
@@ -32,9 +33,22 @@ func (g *mysqlDDLGenerator) Generate(table *model.Table, options g.Options, w io
 	out = out + "  modified_time bigint"
 	if primaryKeys, ok := options[OPTION_PRIMARY_KEYS]; ok {
 		out = out + ",\n"
-		out = out + fmt.Sprintf("  primary key(%s)", primaryKeys)
+		out = out + fmt.Sprintf("  primary key(%s)", g.toSnakeNames(primaryKeys))
 	}
 
-	out = out + "\n)\n"
+	out = out + "\n) engine=InnoDB;\n"
 	fmt.Fprintf(w, out)
+}
+
+func (g *mysqlDDLGenerator) toSnakeNames(src string) string {
+	list := strings.SplitN(src, ",", -1)
+	out := ""
+	for i, key := range list {
+		if i > 0 {
+			out = out + ","
+		}
+		field := model.Type{Name: key}
+		out = out + field.SnakeName()
+	}
+	return out
 }
