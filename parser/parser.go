@@ -20,7 +20,7 @@ func Parse(f *ast.File) ([]*model.Table, error) {
 		}
 		table, err := parseSpecs(genDecl.Specs)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		tables = append(tables, table)
 	}
