@@ -3,6 +3,7 @@ package main
 import (
 	g "./generator"
 	mysql_dao "./generator/mysql-dao"
+	mysql_dao_mock "./generator/mysql-dao-mock"
 	mysql_dao_test "./generator/mysql-dao-test"
 	mysql_ddl "./generator/mysql-ddl"
 	_ "./model"
@@ -18,6 +19,7 @@ const (
 	TYPE_MYSQL_DDL      = "mysql_ddl"
 	TYPE_MYSQL_DAO      = "mysql_dao"
 	TYPE_MYSQL_DAO_TEST = "mysql_dao_test"
+	TYPE_MYSQL_DAO_MOCK = "mysql_dao_mock"
 )
 
 func main() {
@@ -65,6 +67,8 @@ func createGenerator(outType string) g.Generator {
 		return mysql_dao.NewGenerator()
 	case TYPE_MYSQL_DAO_TEST:
 		return mysql_dao_test.NewGenerator()
+	case TYPE_MYSQL_DAO_MOCK:
+		return mysql_dao_mock.NewGenerator()
 	default:
 		return nil
 	}
@@ -73,7 +77,7 @@ func createGenerator(outType string) g.Generator {
 func printUsage() {
 	fmt.Printf(`
 Usage : modelGenerator -src=[src file] -outType=[type] -primaryKeys=[keys]
-type : mysql_ddl/mysql_dao/mysql_dao_test
+type : mysql_ddl/mysql_dao/mysql_dao_test/mysql_dao_mock
 keys : , is separator. ex : -primaryKeys=token,user_id
 `)
 }
